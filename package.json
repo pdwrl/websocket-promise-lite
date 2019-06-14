@@ -1,7 +1,7 @@
 {
   "name": "websocket-promise-lite",
   "version": "1.0.0",
-  "description": "To easily work with sockets in async / await style.",
+  "description": "WebSockets styled as a promise (async/await). Lite, fast, easy.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
