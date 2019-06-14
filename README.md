@@ -31,9 +31,9 @@ Back-end (websocket server) have to answer with the same "messageId" parameter!
 
 ### methods
 
-- __connectionEstablished__: waits while connection opens. If fails it reconnects automatically
+- __connectionEstablished()__: waits while connection opens. If fails it reconnects automatically
 - __send( message )__: sending any data to Websocket server. Message have to be an object.
-- __close__: closes Websocket at normal way (code 1000)
+- __close()__: closes Websocket at normal way (code 1000)
 
 ```javascript
 const WS = new WebsocketPromiseLiteClient( config )
