@@ -1,8 +1,17 @@
-## for what?
+## What is it?
+
+This is an Axios for WebSockets :-)
+
+## For what?
 
 To easily work with sockets in async / await style.
 
-## HOW?
+## Installation
+```
+npm i websocket-promise-lite
+```
+
+## How to use?
 ```javascript
 import WebsocketPromiseLiteClient from 'websocket-promise-lite'
 
@@ -14,7 +23,7 @@ const demoFunc = async () => {
 	const answer = await WS.send({
 		myMessage: 'hello websocket!'
 	})
-	console.log( answer )
+	console.log(answer)
 
 	// next actions ...
 
@@ -36,7 +45,7 @@ Back-end (websocket server) have to answer with the same "messageId" parameter!
 - __close()__: closes Websocket at normal way (code 1000)
 
 ```javascript
-const WS = new WebsocketPromiseLiteClient( config )
+const WS = new WebsocketPromiseLiteClient(config)
 ```
 where __config__ is an object with a possible properties:
 
