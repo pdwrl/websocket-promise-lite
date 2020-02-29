@@ -1,6 +1,6 @@
 {
   "name": "websocket-promise-lite",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "WebSockets styled as a promise (async/await). Lite, fast, easy.",
   "main": "index.js",
   "scripts": {

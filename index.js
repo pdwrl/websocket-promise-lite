@@ -1,164 +1,159 @@
-
-let _establishedResolve
-let _establishedReject
-let _waitingOperations = {}
-let _reconnectTimeArr = [3000, 5000, 8000, 12000, 17000] // reconnnects after xyz, 3xyz, 5xyz, 8xyz, 12xyz, 17xyz ... 17xyz if pauseBetweenReconnects === 0
-let _reconnectTimeArrPos = 0
-let _reconnectCount = 0
-let _socket
-let _socketTimeout
-let _closedByTimer = false
-let _connectedTimes = 0
-let _messageId = 0
-let _options 
-
 export default class WebsocketPromiseLiteClient {
-	constructor (config){
-		const defaultConfig = {
-			url: null,
-			urlAdditionalGenerator: null,
-			maxNumberOfReconnects: 0, // infinite
-			pauseBetweenReconnects: 0, // 0 is for random to spare back-end
-			connectTimeout: 5000,
-			serializer: JSON.stringify,
-			deserializer: JSON.parse,
-			binaryType: 'arraybuffer' // or 'blob' if specified
-		}
-		_options = Object.assign(
-			{},
-			defaultConfig,
-			config
-		)
+  constructor (config) {
+    this._waitingOperations = {}
+    this._reconnectTimeArr = [3000, 5000, 8000, 12000, 17000] // reconnnects after xyz, 3xyz, 5xyz, 8xyz, 12xyz, 17xyz ... 17xyz ms if pauseBetweenReconnects === 0
+    this._reconnectTimeArrPos = 0
+    this._reconnectCount = 0
+    this._closedByTimer = false
+    this._connectedTimes = 0
+    this._messageId = 0
 
-		if (!_options.url || !_options.url.match( /^ws{1,2}:\/\// )){
-			throw new Error(`WebsocketPromiseLiteClient: url can't be blank and must start with ws:// or wss://`)
-		}
+    const defaultConfig = {
+      url: null,
+      urlAdditionalGenerator: null,
+      maxNumberOfReconnects: 0, // 0 is infinite
+      pauseBetweenReconnects: 0, // 0 is for random to spare back-end
+      connectTimeout: 5000,
+      serializer: JSON.stringify,
+      deserializer: JSON.parse,
+      binaryType: 'arraybuffer' // or 'blob' if specified
+    }
+    this._options = Object.assign(
+      {},
+      defaultConfig,
+      config
+    )
 
-		if (_options.pauseBetweenReconnects === 0){
-			const addToReconnectTime = Math.floor( Math.random() * 999 );
-			_reconnectTimeArr = _reconnectTimeArr.map( (v) => {
-				return v + addToReconnectTime
-			})
-			_reconnectTimeArr.unshift( addToReconnectTime )
-		}
-	}
+    if (!this._options.url || !this._options.url.match( /^ws{1,2}:\/\// )) {
+      throw new Error(`WebsocketPromiseLiteClient: url can't be blank and must start with ws:// or wss://`)
+    }
 
+    if (this._options.pauseBetweenReconnects === 0) {
+      const addToReconnectTime = Math.floor(Math.random() * 999)
+      this._reconnectTimeArr = this._reconnectTimeArr.map((v) => {
+        return v + addToReconnectTime
+      })
+      this._reconnectTimeArr.unshift(addToReconnectTime)
+    }
+  }
 
-	connectionEstablished () {
-		return new Promise((resolve, reject)=>{
-			_establishedResolve = resolve
-			_establishedReject = reject
-			this.initialize()
-		})
-	}
+  connectionEstablished () {
+    return new Promise((resolve, reject) => {
+      this._establishedResolve = resolve
+      this._establishedReject = reject
+      this.initialize()
+    })
+  }
 
-	async initialize (){
-		let url = _options.url
-		if (_options.urlAdditionalGenerator){
-			url += _options.urlAdditionalGenerator()
-		}
-		_socket = new WebSocket( url )
-		_socketTimeout = setTimeout( ()=>{
-			if (_socket && _socket.readyState !== 1) { 
-				_closedByTimer = true
-				_socket.close()
-			}
-		}, _options.connectTimeout)
+  async initialize () {
+    let url = this._options.url
+    if (this._options.urlAdditionalGenerator) {
+      url += this._options.urlAdditionalGenerator()
+    }
+    this._Socket = new WebSocket(url)
+    this._SocketTimeout = setTimeout(() => {
+      if (this._Socket && this._Socket.readyState !== 1) { 
+        this._closedByTimer = true
+        this._Socket.close()
+      }
+    }, this._options.connectTimeout)
 
-		_socket.binaryType = _options.binaryType
-		
-		_socket.addEventListener('error', (e)=>{ console.error('WebSocket ERROR: ', e) })
-		
-		_socket.addEventListener('close', (e)=>{
-			if (e.code !== 1000){
-				if (_options.onConnectionClose) _options.onConnectionClose(e.code, _closedByTimer)
+    this._Socket.binaryType = this._options.binaryType
+    
+    this._Socket.addEventListener('error', (e) => { console.error('WebSocket ERROR: ', e) })		
+    this._Socket.addEventListener('close', (e) => {
+      if (e.code !== 1000) {
+        if (this._options.onConnectionClose) this._options.onConnectionClose(e.code, this._closedByTimer)
 
-				_closedByTimer = false
-				if (_reconnectCount < _options.maxNumberOfReconnects || _options.maxNumberOfReconnects === 0) {
-					_reconnectCount++
-					let pause
-					if (_options.pauseBetweenReconnects === 0){
-						if ( _reconnectTimeArr[ _reconnectTimeArrPos ] ){
-							pause = _reconnectTimeArr[ _reconnectTimeArrPos ]
-							_reconnectTimeArrPos++
-						}
-						else pause = _reconnectTimeArr[ _reconnectTimeArrPos - 1 ] 
-					}
-					else pause = _options.pauseBetweenReconnects
-					setTimeout( () => {
-						if (_options.onBeforeReOpen) _options.onBeforeReOpen(_reconnectCount, _options.maxNumberOfReconnects)
-						this.initialize()
-					}, pause)
-				}
-				else {
-					if (_establishedReject) _establishedReject()				
-				}
-			}
-		})
-		
-		_socket.addEventListener('message', (message)=> {
-			const answer = _options.deserializer( message.data )
-			const id = answer.messageId
-			if (id && _waitingOperations[ id ]) {
-				delete answer.messageId
-				_waitingOperations[ id ].resolveMe( answer )
-				delete _waitingOperations[ id ]
-			}
-			if (typeof id === 'undefined' && _options.onNotPromisedData) { // not promised data hadling
-				_options.onNotPromisedData( answer )
-			}
-		})
+        this._closedByTimer = false
+        if (this._reconnectCount < this._options.maxNumberOfReconnects || this._options.maxNumberOfReconnects === 0) {
+          this._reconnectCount++
+          let pause
+          if (this._options.pauseBetweenReconnects === 0) {
+            if (this._reconnectTimeArr[this._reconnectTimeArrPos]) {
+              pause = this._reconnectTimeArr[this._reconnectTimeArrPos]
+              this._reconnectTimeArrPos++
+            } else {
+              pause = this._reconnectTimeArr[this._reconnectTimeArrPos - 1]
+            }
+          } else {
+            pause = this._options.pauseBetweenReconnects
+          }
+          setTimeout(() => {
+            if (this._options.onBeforeReOpen) this._options.onBeforeReOpen(this._reconnectCount, this._options.maxNumberOfReconnects)
+            this.initialize()
+          }, pause)
+        } else {
+          if (this._establishedReject) this._establishedReject()				
+        }
+      }
+    })
+    
+    this._Socket.addEventListener('message', (message) => {
+      const answer = this._options.deserializer(message.data)
+      const id = answer.messageId
+      if (id && this._waitingOperations[id]) {
+        delete answer.messageId
+        this._waitingOperations[id].resolveMe(answer)
+        delete this._waitingOperations[id]
+      }
+      if (typeof id === 'undefined' && this._options.onNotPromisedData) { // not promised data hadling
+        this._options.onNotPromisedData(answer)
+      }
+    })
 
-		_socket.addEventListener('open', async () => {
-			clearTimeout( _socketTimeout )
-			_connectedTimes++
-			_reconnectTimeArrPos = 0
-			if (_connectedTimes === 1 && _options.onConnectionOpen) {
-				await _options.onConnectionOpen()
-			}
-			if (_connectedTimes > 1 && _options.onConnectionReOpen) {
-				await _options.onConnectionReOpen()
-			}
-			if (_connectedTimes > 1) {
-				for (let k in _waitingOperations){
-					await this.send( _waitingOperations[ k ].msg, k ) // resending messages after reconnection
-				}
-			}
-			_reconnectCount = 0
-			if (_establishedResolve) _establishedResolve()
-		})	
-	}
+    this._Socket.addEventListener('open', async () => {
+      clearTimeout(this._SocketTimeout)
+      this._connectedTimes++
+      this._reconnectTimeArrPos = 0
+      if (this._connectedTimes === 1 && this._options.onConnectionOpen) {
+        await this._options.onConnectionOpen()
+      }
+      if (this._connectedTimes > 1 && this._options.onConnectionReOpen) {
+        await this._options.onConnectionReOpen()
+      }
+      if (this._connectedTimes > 1) {
+        const waitingOperationsPromises = []
+        Object.keys(this._waitingOperations).forEach(messageId => {
+          waitingOperationsPromises.push(
+            this.send(this._waitingOperations[messageId].msg, messageId) // resending messages after reconnection
+          )
+        })
+        await Promise.all(waitingOperationsPromises)
+      }
+      this._reconnectCount = 0
+      if (this._establishedResolve) this._establishedResolve()
+    })
+  }
 
-	async send( payload, resendMessageId ){
-		return new Promise( (resolve, reject)=>{			
-			if (resendMessageId){
-				_socket.send( _waitingOperations[ resendMessageId ].msg )
-			}
-			else {
-				const msgId = ++_messageId
-				_waitingOperations[ msgId ] = {}
-				_waitingOperations[ msgId ].resolveMe = resolve
-				_waitingOperations[ msgId ].dateTime = Date.now()
-				
-				const payloadType = typeof payload
-				if (payloadType === 'object' && !Array.isArray( payload )){ // pure object
-					payload.messageId = msgId
-				}
-				else { 
-					if (payloadType === 'function') throw new Error(`WebsocketPromiseLiteClient: can't send FUNCTION via websocket`)
-					payload = { // if payload is no object and has a primitive type 
-						message: payload,
-						messageId: msgId
-					}
-				}
-				const serialized = _options.serializer (payload)
-				_waitingOperations[ msgId ].msg = serialized
-				_socket.send(serialized)
-			}
-		})		
-	}
-	
-	close (){
-		_socket.close(1000) // normal closure
-	}
+  async send (payload, resendMessageId) {
+    return new Promise((resolve) => {
+      if (resendMessageId) {
+        this._Socket.send(this._waitingOperations[resendMessageId].msg)
+      } else {
+        const msgId = ++this._messageId
+        this._waitingOperations[msgId] = {}
+        this._waitingOperations[msgId].resolveMe = resolve
+        this._waitingOperations[msgId].dateTime = Date.now()
+        
+        const payloadType = typeof payload
+        if (payload && payloadType === 'object' && !Array.isArray(payload)) { // pure object
+          payload.messageId = msgId
+        } else {
+          if (payloadType === 'function') throw new Error(`WebsocketPromiseLiteClient: can't send FUNCTION via websocket`)
+          payload = { // if payload is no object and has a primitive type 
+            message: payload,
+            messageId: msgId
+          }
+        }
+        const serialized = this._options.serializer(payload)
+        this._waitingOperations[msgId].msg = serialized
+        this._Socket.send(serialized)
+      }
+    })
+  }
+
+  close () {
+    this._Socket.close(1000) // normal closure
+  }
 }
