@@ -62,9 +62,9 @@ export default class WebsocketPromiseLiteClient {
     
     this._Socket.addEventListener('error', (e) => { console.error('WebSocket ERROR: ', e) })		
     this._Socket.addEventListener('close', (e) => {
-      if (e.code !== 1000 && this._options.maxNumberOfReconnects > -1) {
-        if (this._options.onConnectionClose) this._options.onConnectionClose(e.code, this._closedByTimer)
+      if (this._options.onConnectionClose) this._options.onConnectionClose(e.code, this._closedByTimer)
 
+      if (e.code !== 1000 && this._options.maxNumberOfReconnects > -1) {
         this._closedByTimer = false
         if (this._reconnectCount < this._options.maxNumberOfReconnects || this._options.maxNumberOfReconnects === 0) {
           this._reconnectCount++
