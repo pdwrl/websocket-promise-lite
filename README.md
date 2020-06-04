@@ -53,7 +53,7 @@ where __config__ is an object with a possible properties:
 
 __url__: url with protocol. The only required parameter
 
-__maxNumberOfReconnects__: maximum number of reconnections, after which there will be no more reconnections. If 0 then infinite. Default 0.
+__maxNumberOfReconnects__: maximum number of reconnections, after which there will be no more reconnections. If 0 then infinite. If -1 then will be no reconnections. Default 0.
 
 __pauseBetweenReconnects__: pause between reconnections (in ms). If 0 then reconnections will become after randomized pause. Pauses are stored in array [xyz, 3xyz, 5xyz, 8xyz, 12xyz, 17xyz ... 17xyz], where xyz is random number. This is so that all clients reconnects at different time for stable back-end. Default 0.
 

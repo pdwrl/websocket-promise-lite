@@ -11,7 +11,7 @@ export default class WebsocketPromiseLiteClient {
     const defaultConfig = {
       url: null,
       urlAdditionalGenerator: null,
-      maxNumberOfReconnects: 0, // 0 is infinite
+      maxNumberOfReconnects: 0, // 0 is infinite, -1 means no reconnects after the fall of backend
       pauseBetweenReconnects: 0, // 0 is for random to spare back-end
       connectTimeout: 5000,
       serializer: JSON.stringify,
@@ -62,7 +62,7 @@ export default class WebsocketPromiseLiteClient {
     
     this._Socket.addEventListener('error', (e) => { console.error('WebSocket ERROR: ', e) })		
     this._Socket.addEventListener('close', (e) => {
-      if (e.code !== 1000) {
+      if (e.code !== 1000 && this._options.maxNumberOfReconnects > -1) {
         if (this._options.onConnectionClose) this._options.onConnectionClose(e.code, this._closedByTimer)
 
         this._closedByTimer = false
