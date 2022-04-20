@@ -17,7 +17,7 @@ import WebsocketPromiseLiteClient from 'websocket-promise-lite'
 
 const demoFunc = async () => {
 	const WS = new WebsocketPromiseLiteClient({
-		url: 'wss://echo.websocket.org/'
+		url: 'wss://ws.postman-echo.com/raw'
 	})
 	await WS.connectionEstablished()
 	const answer = await WS.send({
@@ -41,7 +41,7 @@ Back-end (websocket server) have to answer with the same "messageId" parameter!
 ### methods
 
 - __connectionEstablished()__: waits while connection opens. If fails it reconnects automatically
-- __send( message )__: sending any data to Websocket server. Message have to be an object.
+- __send(message)__: sending any data to Websocket server. Message have to be an object.
 - __close()__: closes Websocket at normal way (code 1000)
 
 ```javascript
