@@ -48,6 +48,7 @@ export default class WebsocketPromiseLiteClient {
     }
   }
 
+  /** waits for the connection to be established. If fails it reconnects automatically */
   connectionEstablished() {
     return new Promise((resolve, reject) => {
       this.#establishedResolver = resolve
@@ -78,6 +79,7 @@ export default class WebsocketPromiseLiteClient {
     this.#socket.addEventListener('open', this.#onSocketOpen)
   }
 
+  /** sends any unserialized object by WS. */
   async send(payload: TDataDeserialized | undefined, resendMessageId?: TMessageId) {
     return new Promise((resolve) => {
       if (isObject(payload)) {
@@ -179,10 +181,12 @@ export default class WebsocketPromiseLiteClient {
     this.#socket.removeEventListener('open', this.#onSocketOpen)
   }
 
+  /** closes WS at normal way (code 1000) */
   close() {
     this.#socket.close(1000) // normal closure
   }
 
+  /** destructor. removes all event listeners, closes WS connection and clears the list of operations */
   destroy() {
     this.#removeSocketEventListeners()
     this.close()
