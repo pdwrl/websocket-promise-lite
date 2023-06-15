@@ -11,6 +11,8 @@ export interface IWaitingOperation {
   dateTime: number
 }
 
+export type TWaitingOperations = Record<TMessageId, IWaitingOperation>
+
 export interface IConfig {
   /** WebSocket URL. Must start with "ws://" or "wss://". The only required param */
   url: string
@@ -64,5 +66,3 @@ export interface IConfig {
   */
   onNotPromisedData?: (data: ReturnType<TDeserializer>) => Promise<void>
 }
-
-export type TWaitingOperations = Record<TMessageId, IWaitingOperation>

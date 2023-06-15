@@ -1,3 +1,7 @@
+if (process.env.NODE_ENV === 'test') { 
+  (global as any).WebSocket = require('ws')
+}
+
 import { defaultConfig, isFunc, isObject } from './helpers'
 import type {
   IConfig,
@@ -10,7 +14,7 @@ import type {
 
 export default class WebsocketPromiseLiteClient {
   #socket: WebSocket
-  #socketTimeout: number
+  #socketTimeout: ReturnType<typeof setTimeout>
   #messageId: number
   #waitingOperations: TWaitingOperations
   #reconnectTimeArr: number[]
@@ -21,6 +25,7 @@ export default class WebsocketPromiseLiteClient {
   #config: IConfig
   #establishedResolver: TResolver
   #establishedRejector: TRejector
+  #bindedEventHandlers: Record<string, () => void>
 
   constructor(config: IConfig) {
     this.#waitingOperations = {}
@@ -45,6 +50,13 @@ export default class WebsocketPromiseLiteClient {
       const addToReconnectTime = Math.floor(Math.random() * 999)
       this.#reconnectTimeArr = this.#reconnectTimeArr.map((v) => v + addToReconnectTime)
       this.#reconnectTimeArr.unshift(addToReconnectTime)
+    }
+
+    this.#bindedEventHandlers = {
+      error: this.#onSocketError.bind(this),
+      close: this.#onSocketClose.bind(this),
+      message: this.#onSocketMessage.bind(this),
+      open: this.#onSocketOpen.bind(this)
     }
   }
 
@@ -73,10 +85,7 @@ export default class WebsocketPromiseLiteClient {
 
     this.#socket.binaryType = this.#config.binaryType
 
-    this.#socket.addEventListener('error', this.#onSocketError)
-    this.#socket.addEventListener('close', this.#onSocketClose)
-    this.#socket.addEventListener('message', this.#onSocketMessage)
-    this.#socket.addEventListener('open', this.#onSocketOpen)
+    this.#switchSocketEventListeners('on')
   }
 
   /** sends any unserialized object by WS. */
@@ -96,6 +105,16 @@ export default class WebsocketPromiseLiteClient {
         this.#socket.send(this.#waitingOperations[resendMessageId].msg)
       }
     })
+  }
+
+  #switchSocketEventListeners(newState: 'on' | 'off') {
+    const method = newState === 'on'
+      ? 'addEventListener'
+      : 'removeEventListener'
+    Object.keys(this.#bindedEventHandlers)
+      .forEach((type) => {
+        this.#socket[method](type, this.#bindedEventHandlers[type])
+      })
   }
 
   async #onSocketOpen() {
@@ -143,7 +162,7 @@ export default class WebsocketPromiseLiteClient {
     }
 
     if (ev.code !== 1000 && this.#config.maxNumberOfReconnects > -1) {
-      this.#removeSocketEventListeners()
+      this.#switchSocketEventListeners('off')
       this.#closedByTimer = false
       if (this.#reconnectCount < this.#config.maxNumberOfReconnects) {
         this.#reconnectCount++
@@ -174,13 +193,6 @@ export default class WebsocketPromiseLiteClient {
     throw new Error('WebsocketPromiseLiteClient: A socket error has occured')
   }
 
-  #removeSocketEventListeners() {
-    this.#socket.removeEventListener('error', this.#onSocketError)
-    this.#socket.removeEventListener('close', this.#onSocketClose)
-    this.#socket.removeEventListener('message', this.#onSocketMessage)
-    this.#socket.removeEventListener('open', this.#onSocketOpen)
-  }
-
   /** closes WS at normal way (code 1000) */
   close() {
     this.#socket.close(1000) // normal closure
@@ -188,7 +200,7 @@ export default class WebsocketPromiseLiteClient {
 
   /** destructor. removes all event listeners, closes WS connection and clears the list of operations */
   destroy() {
-    this.#removeSocketEventListeners()
+    this.#switchSocketEventListeners('off')
     this.close()
     this.#waitingOperations = {}
   }
