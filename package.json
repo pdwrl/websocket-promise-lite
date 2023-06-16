@@ -1,7 +1,7 @@
 {
   "name": "websocket-promise-lite",
   "version": "2.1.1",
-  "description": "WebSockets styled as a promise (async/await). Lite, fast, easy.",
+  "description": "WebSockets with a promise-based API (async/await). Lite, fast, easy.",
   "main": "index.ts",
   "scripts": {
     "test": "npx jest"
@@ -10,7 +10,7 @@
     "type": "git",
     "url": "git+https://github.com/pdwrl/websocket-promise-lite.git"
   },
-  "keywords": [],
+  "keywords": ["javascript", "typescript", "websocket", "promise", "async/await", "class"],
   "author": "pdwrl",
   "license": "MIT",
   "bugs": {
