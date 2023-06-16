@@ -1,7 +1,3 @@
-if (process.env.NODE_ENV === 'test') { 
-  (global as any).WebSocket = require('ws')
-}
-
 import { defaultConfig, isFunc, isObject } from './helpers'
 import type {
   IConfig,
